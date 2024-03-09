@@ -31,11 +31,40 @@ connect the hardware. Pictured below is the necessary setup:
 </p>
 
 
-## Running
+## Compiling
 
-Once the necessary software has been installed/configured and the I2C LCD is
-connected to the raspberry pi correctly, we can check some information
-pertaining to it that we will need in order to make use of it.
+### The I2C LCD1602 Library
+
+If you wish to make use of this library elsewhere, you can copy `i2c-LCD1602.c`
+and `i2c-LCD1602.h` to your project and then just make sure you compile them
+as a part of your project. There's nothing complicated about the compilation -
+take a look at the `Makefile`.
+
+### The Example Program
+
+First, make sure you are at the root of your local copy of this git repo. Then
+run:
+
+```bash
+make
+```
+
+This will generate `i2c-LCD1602.o`. Now you can run the following commands:
+
+```bash
+cd example/
+make
+```
+
+This will produce the example program `i2c-lcd-test`.
+
+
+### Running the Example Program
+
+Once the necessary software has been installed/configured, the I2C LCD has been
+connected to the raspberry pi correctly, and the example program executable has
+been compiled we can check some information pertaining to the I2C LCD that we
+will need in order to make use of it.
 
 ```bash
 # Check what i2c device files are available to us
@@ -72,5 +101,13 @@ The output may look slightly different for you, but assuming you only have one
 i2c device connected and it's the LCD, you can just take note of the address in
 the output, namely `27` or as we will need to refer to it later: `0x27`.
 
-... to be continued once development has got a little further
+Finally we can run the example program:
 
+```bash
+cd example/
+./i2c-lcd-test /dev/i2c-1 0x27
+```
+
+When the program is running it will read input from `stdin` and either print it
+on the LCD or have the LCD respond appropriately (if, say, the arrow keys or
+backspace are pressed).
