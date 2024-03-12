@@ -27,7 +27,7 @@ Once you have the necessary software installed/configured, we need to
 connect the hardware. Pictured below is the necessary setup:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wiki/JSpeedie/embedded-scribbles/images/RaspberryPi-I2C-LCD1602.png" width="50%"/>
+  <img src="https://raw.githubusercontent.com/wiki/JSpeedie/I2C-HD44780-LCD-C-Library/images/RaspberryPi-I2C-LCD1602.png" width="50%"/>
 </p>
 
 
