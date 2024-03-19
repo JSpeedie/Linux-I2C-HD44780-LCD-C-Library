@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #include "i2c-LCD1602.h"
+#include "i2c-lcd-page-wrapper.h"
 
 
 int terminal_interface_init(struct termios *old_settings) {
@@ -96,10 +97,11 @@ int main(int argc, char **argv) {
 	 *  - the number of rows (2)
 	 *  - the dotize (-1 atm because dotsize is unused),
 	 *  - the backlight setting (1 to have the backlight on). */
-	struct i2c_lcd1602 i2c_lcd = \
+	struct i2c_lcd1602 i2c_lcd1602 = \
 		i2c_lcd1602_init(i2c_lcd_fd, i2c_peripheral_addr, 16, 2, -1, 1);
+	struct i2c_lcd_page i2c_lcd = i2c_lcd_page_init(i2c_lcd1602);
 	/* Perform the necessary startup instructions for our LCD. */
-	i2c_lcd1602_begin(&i2c_lcd);
+	i2c_lcd1602_begin(&i2c_lcd.i2c_lcd1602);
 
 	int user_input_len;
 	char user_input[64];
@@ -137,19 +139,49 @@ int main(int argc, char **argv) {
 				} else if (recent_chars[2] == 27 && recent_chars[1] == 91) {
 					/* If the user pressed the up arrow key */
 					if (recent_chars[0] == 65) {
-						// TODO:
+						/* If the cursor is not already on the first row ... */
+						if (i2c_lcd.cursor_row > 0) {
+							i2c_lcd_page_set_cursor_pos(&i2c_lcd, i2c_lcd.cursor_col, i2c_lcd.cursor_row - 1);
+						}
 					}
 					/* If the user pressed the down arrow key */
 					if (recent_chars[0] == 66) {
-						// TODO:
+						/* If the cursor is not already on the last row ... */
+						if (i2c_lcd.cursor_row < i2c_lcd.i2c_lcd1602.rows - 1) {
+							i2c_lcd_page_set_cursor_pos(&i2c_lcd, i2c_lcd.cursor_col, i2c_lcd.cursor_row + 1);
+						}
 					}
 					/* If the user pressed the right arrow key */
 					if (recent_chars[0] == 67) {
-						i2c_lcd1602_shift(&i2c_lcd, 0, 1);
+						/* If the cursor is at the very right edge of the LCD,
+						 * and there is still more of the row that can be
+						 * displayed ... */
+						if (i2c_lcd.cursor_col  >= i2c_lcd.i2c_lcd1602.columns - 1 \
+							&& i2c_lcd.display_pos < (i2c_lcd.row_width - i2c_lcd.i2c_lcd1602.columns)) {
+							/* ... shift the display left and the cursor right */
+							i2c_lcd_page_shift(&i2c_lcd, 1, 0);
+							i2c_lcd_page_shift(&i2c_lcd, 0, 1);
+						/* If the cursor is NOT at the very right edge of the
+						 * LCD ... */
+						} else if (i2c_lcd.cursor_col < i2c_lcd.i2c_lcd1602.columns - 1) {
+							/* ... otherwise shift just the cursor right */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 1);
+						}
 					}
 					/* If the user pressed the left arrow key */
 					if (recent_chars[0] == 68) {
-						i2c_lcd1602_shift(&i2c_lcd, 0, 0);
+						/* If the cursor is at the very left edge of the LCD,
+						 * and there are characters we can shift left for ... */
+						if (i2c_lcd.cursor_col <= 0 && i2c_lcd.display_pos > 0) {
+							/* ... shift the display right and the cursor left */
+							i2c_lcd_page_shift(&i2c_lcd, 1, 1);
+							i2c_lcd_page_shift(&i2c_lcd, 0, 0);
+						/* If the cursor is NOT at the very left edge of the
+						 * LCD ... */
+						} else if (i2c_lcd.cursor_col  > 0) {
+							/* ... just shift the cursor left */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 0);
+						}
 					}
 
 					continue;
@@ -157,17 +189,60 @@ int main(int argc, char **argv) {
 
 				/* If the input character is a backspace */
 				if (user_input[i] == 127) {
-					// Move cursor back 1 spot
-					// write a space
-					// move the cursor back 2 spots?
-					//
-					// OR
-					//
-					// set entry mode to shift left
-					// write space
-					// set entry mode to shift right
-					//
-					i2c_lcd1602_shift(&i2c_lcd, 0, 0);
+					/* Depending on which direction the cursor moves
+					 * after receiving a character, either backspace
+					 * to the left, or backspace to the right */
+					if (i2c_lcd.i2c_lcd1602.entry_shift_increment == 1) {
+						/* If the cursor is at the left edge of the LCD,
+						 * and there are characters we can shift left for ... */
+						/* + 1 so we always see at least 1 character in the
+						 * direction we are backspacing */
+						if (i2c_lcd.cursor_col <= 0 + 1 && i2c_lcd.display_pos > 0) {
+							/* Shift the display right */
+							i2c_lcd_page_shift(&i2c_lcd, 1, 1);
+							/* Shift the cursor left */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 0);
+							/* Write a space */
+							i2c_lcd_page_send_char(&i2c_lcd, ' ');
+							/* Shift the cursor left */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 0);
+						/* If the cursor is NOT at the left edge of the LCD ... */
+						} else if (i2c_lcd.cursor_col  > 0) {
+							/* Shift the cursor left */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 0);
+							/* Write a space */
+							i2c_lcd_page_send_char(&i2c_lcd, ' ');
+							/* Shift the cursor left */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 0);
+						}
+					} else {
+						/* If the cursor is at the right edge of the LCD,
+						 * and there are characters we can shift left for ... */
+						/* - 1 so we always see at least 1 character in the
+						 * direction we are backspacing */
+						if (i2c_lcd.cursor_col >= (i2c_lcd.i2c_lcd1602.columns - 1) - 1 \
+							&& i2c_lcd.display_pos + i2c_lcd.cursor_col < i2c_lcd.row_width) {
+
+							/* Shift the display left */
+							i2c_lcd_page_shift(&i2c_lcd, 1, 0);
+							/* Shift the cursor right */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 1);
+							/* Write a space */
+							i2c_lcd_page_send_char(&i2c_lcd, ' ');
+							/* Shift the cursor right */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 1);
+						/* If the cursor is NOT at the right edge of the LCD ... */
+						} else if (i2c_lcd.cursor_col  > 0) {
+							/* Shift the cursor right */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 1);
+							/* Write a space */
+							i2c_lcd_page_send_char(&i2c_lcd, ' ');
+							/* Shift the cursor right */
+							i2c_lcd_page_shift(&i2c_lcd, 0, 1);
+						}
+					}
+
+					continue;
 				}
 
 				/* If the input character is between ' ' and '~', the
@@ -175,7 +250,44 @@ int main(int argc, char **argv) {
 				 * other words, filter the input to printable characters only
 				 * */
 				if (user_input[i] >= 32 && user_input[i] <= 126) {
-					i2c_lcd1602_send_char(&i2c_lcd, user_input[i]);
+					/* If sending the char would go past the right boundary of
+					 * a row ... */
+					if (i2c_lcd.cursor_col + i2c_lcd.display_pos == i2c_lcd.row_width - 1 \
+						&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 1) {
+
+						/* ... shift the cursor left after sending the char */
+						i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
+						i2c_lcd_page_shift(&i2c_lcd, 0, 0);
+					/* If sending the char would go past the left boundary of
+					 * a row ... */
+					} else if (i2c_lcd.cursor_col + i2c_lcd.display_pos == 0 \
+						&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 0) {
+
+						/* ... shift the cursor right after sending the char */
+						i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
+						i2c_lcd_page_shift(&i2c_lcd, 0, 1);
+					} else {
+						/* If the cursor is at the right edge of display window
+						 * and the receiving the character would move the
+						 * cursor to the right ... */
+						if (i2c_lcd.cursor_col == i2c_lcd.i2c_lcd1602.columns - 1 \
+							&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 1) {
+							/* ... send the character and shift the display
+							 * left */
+							i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
+							i2c_lcd_page_shift(&i2c_lcd, 1, 0);
+						} else if (i2c_lcd.cursor_col == 0 \
+							&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 0) {
+							/* ... send the character and shift the display
+							 * right */
+							i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
+							i2c_lcd_page_shift(&i2c_lcd, 1, 1);
+						} else {
+							i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
+						}
+					}
+
+					continue;
 				}
 			}
 		}

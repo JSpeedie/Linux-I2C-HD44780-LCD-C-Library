@@ -1,3 +1,6 @@
+#ifndef I2C_LCD1602
+#define I2C_LCD1602
+
 #include <stdint.h>
 #include <stddef.h>
 
@@ -56,28 +59,34 @@ struct i2c_lcd1602 {
 	uint8_t rows;
 	uint8_t dotsize;
 	uint8_t backlight;
+	uint8_t entry_shift;
+	uint8_t entry_shift_increment;
 };
 
 
 struct i2c_lcd1602 i2c_lcd1602_init(int i2c_lcd_fd, uint8_t periph_addr,
-	uint8_t columns, uint8_t rows, uint8_t dotsize, char backlight);
+	uint8_t columns, uint8_t rows, uint8_t dotsize, uint8_t backlight);
 
 void i2c_lcd1602_begin(struct i2c_lcd1602 *i2c_lcd1602);
 
 void i2c_lcd1602_clear_display(struct i2c_lcd1602 *i2c_lcd1602);
 
+void i2c_lcd1602_set_cursor_pos(struct i2c_lcd1602 *i2c_lcd1602, uint8_t ac);
+
 void i2c_lcd1602_cursor_home(struct i2c_lcd1602 *i2c_lcd1602);
 
-void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, char increment, char shift);
+void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t increment, uint8_t shift);
 
-void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602, char display, char cursor, char cursorblinking);
+void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602, uint8_t display, uint8_t cursor, uint8_t cursorblinking);
 
-void i2c_lcd1602_shift(struct i2c_lcd1602 *i2c_lcd1602, char shift_display, char right_left);
+void i2c_lcd1602_shift(struct i2c_lcd1602 *i2c_lcd1602, uint8_t screen_cursor, uint8_t right_left);
 
-void i2c_lcd1602_function_set(struct i2c_lcd1602 *i2c_lcd1602, char data_length, char display_lines, char font);
+void i2c_lcd1602_function_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data_length, uint8_t display_lines, uint8_t font);
 
 void i2c_lcd1602_send_char(struct i2c_lcd1602 *i2c_lcd1602, char c);
 
 void i2c_lcd1602_write_4bitmode(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data, uint8_t mode);
 
-uint8_t set_mode(char rs, char rw);
+uint8_t set_mode(uint8_t rs, uint8_t rw);
+
+#endif

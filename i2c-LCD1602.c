@@ -11,7 +11,7 @@
 
 
 struct i2c_lcd1602 i2c_lcd1602_init(int i2c_lcd_fd, uint8_t periph_addr, uint8_t
-	columns, uint8_t rows, uint8_t dotsize, char backlight) {
+	columns, uint8_t rows, uint8_t dotsize, uint8_t backlight) {
 	/* {{{ */
 
 	struct i2c_lcd1602 ret = {
@@ -103,6 +103,30 @@ void i2c_lcd1602_clear_display(struct i2c_lcd1602 *i2c_lcd1602) {
 }
 
 
+/** Set the cursor position */
+void i2c_lcd1602_set_cursor_pos(struct i2c_lcd1602 *i2c_lcd1602, uint8_t ac) {
+	/* {{{ */
+	/* See page 21, 24 of the HD44780 datasheet */
+
+	/* Set the command type */
+	uint8_t data = LCD_SETDDRAMADDR;
+	data |= ac;
+	/* Set RS and R/W appropriately */
+	uint8_t mode = set_mode(0, 0);
+	/* Respect backlight settings for the LCD */
+	mode |= i2c_lcd1602->backlight;
+
+	i2c_lcd1602_write_4bitmode(i2c_lcd1602, data, mode);
+
+	/* According to page 24 of the HD44780 datasheet, this operation takes a
+	 * maximum of 37µs */
+	/* Sleep for 37µs */
+	struct timespec a = (struct timespec) { .tv_sec = 0, .tv_nsec = 37000};
+	nanosleep(&a, NULL);
+	/* }}} */
+}
+
+
 /** Move the cursor to (0, 0) */
 void i2c_lcd1602_cursor_home(struct i2c_lcd1602 *i2c_lcd1602) {
 	/* {{{ */
@@ -110,8 +134,8 @@ void i2c_lcd1602_cursor_home(struct i2c_lcd1602 *i2c_lcd1602) {
 
 	/* Set DB7 to DB0 appropriately */
 	uint8_t data = LCD_RETURNHOME;
-	/* Set RS and R/W (respectively) to binary 00 */
-	uint8_t mode = 0x00; // 00000000
+	/* Set RS and R/W appropriately */
+	uint8_t mode = set_mode(0, 0);
 	/* Respect backlight settings for the LCD */
 	mode |= i2c_lcd1602->backlight;
 
@@ -127,7 +151,7 @@ void i2c_lcd1602_cursor_home(struct i2c_lcd1602 *i2c_lcd1602) {
 
 
 /** Set the entry mode for the i2c LCD */
-void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, char increment, char shift) {
+void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t increment, uint8_t shift) {
 	/* {{{ */
 	/* See page 24, 26, 40, 42 of the HD44780 datasheet */
 
@@ -145,10 +169,20 @@ void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, char increment,
 	 *   cursor moves (which depends on whether increment or decrement is set)
 	 *   after receiving a new character).
 	 */
-	if (increment == 1) data |= LCD_ENTRYINCREMENT;
-	else if (increment == 0) data |= LCD_ENTRYDECREMENT;
-	if (shift == 1) data |= LCD_ENTRYSHIFT;
-	else if (shift == 0) data |= LCD_ENTRYNOSHIFT;
+	if (increment == 1) {
+		data |= LCD_ENTRYINCREMENT;
+		i2c_lcd1602->entry_shift_increment = 1;
+	} else if (increment == 0) {
+		data |= LCD_ENTRYDECREMENT;
+		i2c_lcd1602->entry_shift_increment = 0;
+	}
+	if (shift == 1) {
+		data |= LCD_ENTRYSHIFT;
+		i2c_lcd1602->entry_shift = 1;
+	} else if (shift == 0) {
+		data |= LCD_ENTRYNOSHIFT;
+		i2c_lcd1602->entry_shift = 0;
+	}
 	/* Set both RS and R/W to 0 */
 	uint8_t mode = set_mode(0, 0);
 
@@ -164,8 +198,8 @@ void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, char increment,
 
 
 /** Set the display controls for the i2c LCD */
-void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602, char display,
-	char cursor, char cursorblinking) {
+void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602, uint8_t display,
+	uint8_t cursor, uint8_t cursorblinking) {
 	/* {{{ */
 	/* See page 24, 42 of the HD44780 datasheet */
 
@@ -194,16 +228,16 @@ void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602, char display,
 }
 
 
-/** Shift the cursor (and possibly the display as well) to the right or to the
- * left */
-void i2c_lcd1602_shift(struct i2c_lcd1602 *i2c_lcd1602, char shift_display, char right_left) {
+/** Shift the screen or the cursor to the right or to the left */
+void i2c_lcd1602_shift(struct i2c_lcd1602 *i2c_lcd1602, uint8_t screen_cursor,
+	uint8_t right_left) {
 	/* {{{ */
 	/* See page 24, 29 of the HD44780 datasheet */
 
 	/* Set the data */
 	uint8_t data = LCD_CURSORDISPLAYSHIFT; // 00010000
-	if (shift_display == 1) data |= LCD_DISPLAYMOVE;
-	else if (shift_display == 0) data |= LCD_CURSORMOVE;
+	if (screen_cursor == 1) data |= LCD_DISPLAYMOVE;
+	else if (screen_cursor == 0) data |= LCD_CURSORMOVE;
 	if (right_left == 1) data |= LCD_MOVERIGHT;
 	else if (right_left == 0) data |= LCD_MOVELEFT;
 	/* Set RS and R/W appropriately */
@@ -224,7 +258,7 @@ void i2c_lcd1602_shift(struct i2c_lcd1602 *i2c_lcd1602, char shift_display, char
 
 /** Establish the functionality settings for the i2c LCD */
 void i2c_lcd1602_function_set(struct i2c_lcd1602 *i2c_lcd1602,
-	char data_length, char display_lines, char font) {
+	uint8_t data_length, uint8_t display_lines, uint8_t font) {
 	/* {{{ */
 	/* See page 24, 27, 29 of the HD44780 datasheet */
 
@@ -335,7 +369,7 @@ void i2c_lcd1602_write_4bitmode(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data, u
 }
 
 
-uint8_t set_mode(char rs, char rw) {
+uint8_t set_mode(uint8_t rs, uint8_t rw) {
 	/* {{{ */
 	uint8_t mode = 0x00; // 00000000
 
@@ -345,12 +379,3 @@ uint8_t set_mode(char rs, char rw) {
 	return mode;
 	/* }}} */
 }
-
-
-/* void i2c_lcd1602_set_cursor_loc(uint8_t col, uint8_t row) { */
-/* 	int row_offsets[] = { 0x00, 0x40, 0x14, 0x54 }; */
-/* 	if ( row > _numlines ) { */
-/* 		row = _numlines - 1;    // we count rows starting w/0 */
-/* 	} */
-/* 	command(LCD_SETDDRAMADDR | (col + row_offsets[row])); */
-/* } */
