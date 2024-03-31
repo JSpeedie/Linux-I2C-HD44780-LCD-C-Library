@@ -10,8 +10,8 @@
  */
 
 
-struct i2c_lcd1602 i2c_lcd1602_init(int i2c_lcd_fd, uint8_t periph_addr, uint8_t
-	columns, uint8_t rows, uint8_t dotsize, uint8_t backlight) {
+struct i2c_lcd1602 i2c_lcd1602_init(int i2c_lcd_fd, uint8_t periph_addr,
+	uint8_t columns, uint8_t rows, uint8_t dotsize, uint8_t backlight) {
 	/* {{{ */
 
 	struct i2c_lcd1602 ret = {
@@ -151,7 +151,8 @@ void i2c_lcd1602_cursor_home(struct i2c_lcd1602 *i2c_lcd1602) {
 
 
 /** Set the entry mode for the i2c LCD */
-void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t increment, uint8_t shift) {
+void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t
+	increment, uint8_t shift) {
 	/* {{{ */
 	/* See page 24, 26, 40, 42 of the HD44780 datasheet */
 
@@ -198,8 +199,8 @@ void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t increme
 
 
 /** Set the display controls for the i2c LCD */
-void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602, uint8_t display,
-	uint8_t cursor, uint8_t cursorblinking) {
+void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602,
+	uint8_t display, uint8_t cursor, uint8_t cursorblinking) {
 	/* {{{ */
 	/* See page 24, 42 of the HD44780 datasheet */
 
@@ -310,13 +311,47 @@ void i2c_lcd1602_send_char(struct i2c_lcd1602 *i2c_lcd1602, char c) {
 }
 
 
+/** Set the backlight setting for the LCD */
+void i2c_lcd1602_set_backlight(struct i2c_lcd1602 *i2c_lcd1602, uint8_t
+	backlight) {
+	/* {{{ */
+	// TODO:
+	/* See page 24, 26, 40, 42 of the HD44780 datasheet */
+
+	/* There is no "set backlight" command for the LCD. Instead, the backlight
+	 * is set on or off with each sent command. That said, we can change the
+	 * stored value for the backlight that exists in the LCD struct, and use
+	 * the entry mode set command as a means of immediately bringing about
+	 * that change without changing anything else (i.e. without sending a
+	 * character or shifting the display) */
+
+	/* Set the command type */
+	uint8_t data = LCD_ENTRYMODESET;
+	/* Maintain the LCD  entry mode settings */
+	data |= i2c_lcd1602->entry_shift_increment;
+	data |= i2c_lcd1602->entry_shift;
+	/* Set both RS and R/W to 0 */
+	uint8_t mode = set_mode(0, 0);
+
+	i2c_lcd1602_write_4bitmode(i2c_lcd1602, data, mode);
+
+	/* According to page 24 of the HD44780 datasheet, this operation takes a
+	 * maximum of 37µs */
+	/* Sleep for 37µs */
+	struct timespec a = (struct timespec) { .tv_sec = 0, .tv_nsec = 37000};
+	nanosleep(&a, NULL);
+	/* }}} */
+}
+
+
 /** Write to the i2c LCD in 4 bit mode. The real difference between writing
  * and reading in 4 bit vs. 8 bit mode is that two 4 bit instructions are
  * used to accomplish what would be accomplished in one 8 bit instruction.
  * Compare the last stages of page 45 and page 46 of the HD44780 datasheet
  * to see what I mean.
  */
-void i2c_lcd1602_write_4bits(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data_and_mode) {
+void i2c_lcd1602_write_4bits(struct i2c_lcd1602 *i2c_lcd1602, uint8_t
+	data_and_mode) {
 
 	/* =================
 	 * with enable bit stuff
@@ -358,7 +393,8 @@ void i2c_lcd1602_write_4bits(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data_and_m
  * Compare the last stages of page 45 and page 46 of the HD44780 datasheet to
  * see what I mean.
  */
-void i2c_lcd1602_write_4bitmode(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data, uint8_t mode) {
+void i2c_lcd1602_write_4bitmode(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data,
+	uint8_t mode) {
 	/* {{{ */
 	uint8_t highnib = (data & 0xf0) | mode;
 	uint8_t lownib = ((data << 4) & 0xf0) | mode;

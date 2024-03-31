@@ -85,6 +85,8 @@ void i2c_lcd1602_function_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data_leng
 
 void i2c_lcd1602_send_char(struct i2c_lcd1602 *i2c_lcd1602, char c);
 
+void i2c_lcd1602_set_backlight(struct i2c_lcd1602 *i2c_lcd1602, uint8_t backlight);
+
 void i2c_lcd1602_write_4bitmode(struct i2c_lcd1602 *i2c_lcd1602, uint8_t data, uint8_t mode);
 
 uint8_t set_mode(uint8_t rs, uint8_t rw);
