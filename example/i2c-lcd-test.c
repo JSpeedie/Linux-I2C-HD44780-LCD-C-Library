@@ -125,8 +125,6 @@ int main(int argc, char **argv) {
 			 * write the text */
 			for (int i = 0; i < user_input_len; i++) {
 
-				printf("user hit %d\n", user_input[i]);
-
 				/* Update the recent chars buffer */
 				for (int j = 3; j > 0; j--) {
 					recent_chars[j] = recent_chars[j - 1];
