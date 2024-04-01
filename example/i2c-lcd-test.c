@@ -96,9 +96,10 @@ int main(int argc, char **argv) {
 	 *  - the number of columns (16),
 	 *  - the number of rows (2)
 	 *  - the dotize (-1 atm because dotsize is unused),
-	 *  - the backlight setting (1 to have the backlight on). */
+	 *  - the backlight setting (backlight on). */
 	struct i2c_lcd1602 i2c_lcd1602 = \
-		i2c_lcd1602_init(i2c_lcd_fd, i2c_peripheral_addr, 16, 2, -1, 1);
+		i2c_lcd1602_init(i2c_lcd_fd, i2c_peripheral_addr, 16, 2, -1, \
+		LCD_BACKLIGHT);
 	struct i2c_lcd_page i2c_lcd = i2c_lcd_page_init(i2c_lcd1602);
 	/* Perform the necessary startup instructions for our LCD. */
 	i2c_lcd1602_begin(&i2c_lcd.i2c_lcd1602);
@@ -123,6 +124,8 @@ int main(int argc, char **argv) {
 			/* Send the input, char by char, to the i2c device to get it to
 			 * write the text */
 			for (int i = 0; i < user_input_len; i++) {
+
+				printf("user hit %d\n", user_input[i]);
 
 				/* Update the recent chars buffer */
 				for (int j = 3; j > 0; j--) {
@@ -186,13 +189,25 @@ int main(int argc, char **argv) {
 
 					continue;
 				}
+				/* If the input character is a Ctrl+l */
+				if (user_input[i] == 12) {
+					/* Turn off the backlight if the backlight is on, and
+					 * turn on the backlight if it is off */
+					if (i2c_lcd.i2c_lcd1602.backlight == LCD_BACKLIGHT) {
+						i2c_lcd1602_set_backlight(&i2c_lcd.i2c_lcd1602, LCD_NOBACKLIGHT);
+					} else if (i2c_lcd.i2c_lcd1602.backlight == LCD_NOBACKLIGHT) {
+						i2c_lcd1602_set_backlight(&i2c_lcd.i2c_lcd1602, LCD_BACKLIGHT);
+					}
+
+					continue;
+				}
 
 				/* If the input character is a backspace */
 				if (user_input[i] == 127) {
 					/* Depending on which direction the cursor moves
 					 * after receiving a character, either backspace
 					 * to the left, or backspace to the right */
-					if (i2c_lcd.i2c_lcd1602.entry_shift_increment == 1) {
+					if (i2c_lcd.i2c_lcd1602.entry_shift_increment == LCD_ENTRYINCREMENT) {
 						/* If the cursor is at the left edge of the LCD,
 						 * and there are characters we can shift left for ... */
 						/* + 1 so we always see at least 1 character in the
@@ -215,7 +230,7 @@ int main(int argc, char **argv) {
 							/* Shift the cursor left */
 							i2c_lcd_page_shift(&i2c_lcd, 0, 0);
 						}
-					} else {
+					} else if (i2c_lcd.i2c_lcd1602.entry_shift_increment == LCD_ENTRYDECREMENT) {
 						/* If the cursor is at the right edge of the LCD,
 						 * and there are characters we can shift left for ... */
 						/* - 1 so we always see at least 1 character in the
@@ -253,7 +268,7 @@ int main(int argc, char **argv) {
 					/* If sending the char would go past the right boundary of
 					 * a row ... */
 					if (i2c_lcd.cursor_col + i2c_lcd.display_pos == i2c_lcd.row_width - 1 \
-						&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 1) {
+						&& i2c_lcd.i2c_lcd1602.entry_shift_increment == LCD_ENTRYINCREMENT) {
 
 						/* ... shift the cursor left after sending the char */
 						i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
@@ -261,7 +276,7 @@ int main(int argc, char **argv) {
 					/* If sending the char would go past the left boundary of
 					 * a row ... */
 					} else if (i2c_lcd.cursor_col + i2c_lcd.display_pos == 0 \
-						&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 0) {
+						&& i2c_lcd.i2c_lcd1602.entry_shift_increment == LCD_ENTRYDECREMENT) {
 
 						/* ... shift the cursor right after sending the char */
 						i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
@@ -271,13 +286,13 @@ int main(int argc, char **argv) {
 						 * and the receiving the character would move the
 						 * cursor to the right ... */
 						if (i2c_lcd.cursor_col == i2c_lcd.i2c_lcd1602.columns - 1 \
-							&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 1) {
+							&& i2c_lcd.i2c_lcd1602.entry_shift_increment == LCD_ENTRYINCREMENT) {
 							/* ... send the character and shift the display
 							 * left */
 							i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);
 							i2c_lcd_page_shift(&i2c_lcd, 1, 0);
 						} else if (i2c_lcd.cursor_col == 0 \
-							&& i2c_lcd.i2c_lcd1602.entry_shift_increment == 0) {
+							&& i2c_lcd.i2c_lcd1602.entry_shift_increment == LCD_ENTRYDECREMENT) {
 							/* ... send the character and shift the display
 							 * right */
 							i2c_lcd_page_send_char(&i2c_lcd, user_input[i]);

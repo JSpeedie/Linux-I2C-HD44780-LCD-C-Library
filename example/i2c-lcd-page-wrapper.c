@@ -93,17 +93,17 @@ void i2c_lcd_page_send_char(struct i2c_lcd_page *i2c_lcd_page, char c) {
 	if (i2c_lcd_page->i2c_lcd1602.entry_shift == 0) {
 		/* If the LCD is set to shift the cursor to the right after receiving
 		 * a character ... */
-		if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == 1) {
+		if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == LCD_ENTRYINCREMENT) {
 			i2c_lcd_page->cursor_col++;
-		} else if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == 0) {
+		} else if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == LCD_ENTRYDECREMENT) {
 			i2c_lcd_page->cursor_col--;
 		}
 	} else if (i2c_lcd_page->i2c_lcd1602.entry_shift == 1) {
 		/* If the LCD is set to shift the display to the right after receiving
 		 * a character ... */
-		if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == 1) {
+		if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == LCD_ENTRYINCREMENT) {
 			i2c_lcd_page->display_pos++;
-		} else if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == 0) {
+		} else if (i2c_lcd_page->i2c_lcd1602.entry_shift_increment == LCD_ENTRYDECREMENT) {
 			i2c_lcd_page->display_pos--;
 		}
 	}

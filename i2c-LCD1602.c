@@ -22,8 +22,7 @@ struct i2c_lcd1602 i2c_lcd1602_init(int i2c_lcd_fd, uint8_t periph_addr,
 		.dotsize = 0 // 5x8 dotsize
 	};
 
-	if (backlight == 1) ret.backlight = LCD_BACKLIGHT;
-	else ret.backlight = LCD_NOBACKLIGHT;
+	ret.backlight = backlight;
 
 	return ret;
 	/* }}} */
@@ -65,14 +64,15 @@ void i2c_lcd1602_begin(struct i2c_lcd1602 *i2c_lcd1602) {
 
 	/* Set the display control of the LCD  (E.g. here: display = on,
 	 * cursor = on, cursor blinking = on) */
-	i2c_lcd1602_display_control(i2c_lcd1602, 1, 1, 1);
+	i2c_lcd1602_display_control(i2c_lcd1602, LCD_DISPLAYON, LCD_CURSORON, \
+		LCD_BLINKON);
 
 	/* Clear the display */
 	 i2c_lcd1602_clear_display(i2c_lcd1602);
 
 	/* Set the LCD to have new characters appear left-to-right, and do not
 	 * shift the display upon receiving a new character */
-	i2c_lcd1602_entry_mode_set(i2c_lcd1602, 1, 0);
+	i2c_lcd1602_entry_mode_set(i2c_lcd1602, LCD_ENTRYINCREMENT, LCD_ENTRYNOSHIFT);
 
 	/* Move the cursor back to the beginning */
 	i2c_lcd1602_cursor_home(i2c_lcd1602);
@@ -170,20 +170,10 @@ void i2c_lcd1602_entry_mode_set(struct i2c_lcd1602 *i2c_lcd1602, uint8_t
 	 *   cursor moves (which depends on whether increment or decrement is set)
 	 *   after receiving a new character).
 	 */
-	if (increment == 1) {
-		data |= LCD_ENTRYINCREMENT;
-		i2c_lcd1602->entry_shift_increment = 1;
-	} else if (increment == 0) {
-		data |= LCD_ENTRYDECREMENT;
-		i2c_lcd1602->entry_shift_increment = 0;
-	}
-	if (shift == 1) {
-		data |= LCD_ENTRYSHIFT;
-		i2c_lcd1602->entry_shift = 1;
-	} else if (shift == 0) {
-		data |= LCD_ENTRYNOSHIFT;
-		i2c_lcd1602->entry_shift = 0;
-	}
+	i2c_lcd1602->entry_shift_increment = increment;
+	data |= increment;
+	i2c_lcd1602->entry_shift = shift;
+	data |= shift;
 	/* Set both RS and R/W to 0 */
 	uint8_t mode = set_mode(0, 0);
 
@@ -207,12 +197,9 @@ void i2c_lcd1602_display_control(struct i2c_lcd1602 *i2c_lcd1602,
 	/* Set the command type */
 	uint8_t data = LCD_DISPLAYONOFFCONTROL;
 	/* Set the details of the command, i.e., set the display settings */
-	if (display == 1) data |= LCD_DISPLAYON;
-	else if (display == 0) data |= LCD_DISPLAYOFF;
-	if (cursor == 1) data |= LCD_CURSORON;
-	else if (cursor == 0) data |= LCD_CURSOROFF;
-	if (cursorblinking == 1) data |= LCD_BLINKON;
-	else if (cursorblinking == 0) data |= LCD_BLINKOFF;
+	data |= display;
+	data |= cursor;
+	data |= cursorblinking;
 	/* Set both RS and R/W to 0 */
 	uint8_t mode = set_mode(0, 0);
 	/* Respect backlight settings for the LCD */
@@ -324,6 +311,7 @@ void i2c_lcd1602_set_backlight(struct i2c_lcd1602 *i2c_lcd1602, uint8_t
 	 * the entry mode set command as a means of immediately bringing about
 	 * that change without changing anything else (i.e. without sending a
 	 * character or shifting the display) */
+	i2c_lcd1602->backlight = backlight;
 
 	/* Set the command type */
 	uint8_t data = LCD_ENTRYMODESET;
@@ -332,6 +320,8 @@ void i2c_lcd1602_set_backlight(struct i2c_lcd1602 *i2c_lcd1602, uint8_t
 	data |= i2c_lcd1602->entry_shift;
 	/* Set both RS and R/W to 0 */
 	uint8_t mode = set_mode(0, 0);
+	/* Respect backlight settings for the LCD */
+	mode |= i2c_lcd1602->backlight;
 
 	i2c_lcd1602_write_4bitmode(i2c_lcd1602, data, mode);
 
