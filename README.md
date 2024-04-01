@@ -110,4 +110,17 @@ cd example/
 
 When the program is running it will read input from `stdin` and either print it
 on the LCD or have the LCD respond appropriately (if, say, the arrow keys or
-backspace are pressed).
+backspace are pressed). The supported actions are as follows:
+
+```
+* ASCII characters 32 to 126 (i.e. most printable keyboard characters):
+    * Send the character to the LCD
+* Backspace:
+    * Remove the character one step behind the cursor
+* Up/Down and left/right arrow keys:
+    * Move the cursor up one row/down one row if there are any rows above or
+      below the cursor, and move the cursor left or right if there are columns
+      left or right of the cursor.
+* Ctrl+l:
+    * Toggle the backlight on or off
+```
