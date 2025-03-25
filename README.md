@@ -27,13 +27,13 @@ Once you have the necessary software installed/configured, we need to
 connect the hardware. Pictured below is the necessary setup:
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/wiki/JSpeedie/I2C-HD44780-LCD-C-Library/images/RaspberryPi-I2C-LCD1602.png" width="50%"/>
+  <img src="https://raw.githubusercontent.com/wiki/JSpeedie/Linux-I2C-HD44780-LCD-C-Library/images/RaspberryPi-I2C-LCD1602.png" width="50%"/>
 </p>
 
 
 ## Compiling
 
-### The I2C LCD1602 Library
+### The Linux I2C LCD1602 Library
 
 If you wish to make use of this library elsewhere, you can copy `i2c-LCD1602.c`
 and `i2c-LCD1602.h` to your project and then just make sure you compile them
